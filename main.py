@@ -77,9 +77,11 @@ def add_features(df):
     df["duration_trip"] = create_trip_duration(df)
     df["same_country"] = create_guest_same_country_booking(df)
     df["time_for_free_cancellation"] = create_for_free_cancelation(df)
-
     return df
 
+def create_predicted_selling_amount_column(df):
+    return df.apply(lambda row: compute_policy(row["cancellation_policy_code"], row['checkin_date'], row['checkout_date'],
+                                              row["cancellation_datetime"], row["original_selling_amount"]), axis=1)
 
 def create_cancellation_colunmn(df):
     """
@@ -165,8 +167,42 @@ def classify_columns(df):
     """
     return pd.get_dummies(df, columns=DUMMIES_COLUMNS, dtype=float)
 
+def compute_policy(policy, checkin_date, checkout_date, cancellation_date, original_selling_amount):
+    checkin_date_format = "%Y-%m-%d %H:%M:%S"
+    cancellation_date_format = "%Y-%m-%d"
+    date2 = datetime.strptime(checkin_date, checkin_date_format)
+    date3 = datetime.strptime(checkout_date, checkin_date_format)
+    date1 = datetime.strptime(cancellation_date, cancellation_date_format)
+    difference = str(date2 - date1)
+    num_days_cancellation_to_checkin = int(difference.split(" ")[0])
+    best_policy = {}
+    best_diff = np.inf
+    for pol in decode_policy(policy):
+        if abs(num_days_cancellation_to_checkin-pol["days"]) < best_diff:
+            best_diff = abs(num_days_cancellation_to_checkin-pol["days"])
+            best_policy = pol
+    if best_policy["days"] < num_days_cancellation_to_checkin:
+        return 0.0
+    elif best_policy["nights"] < 0:
+        return (best_policy["price"]/100) * original_selling_amount
+    else:
+        trip_duration = str(date3 - date2)
+        trip_duration = int(trip_duration.split(" ")[0])
+        return (best_policy["nights"]/trip_duration) * original_selling_amount
+
+
 
 def classifier_fit(X, y):
+    """
+    Apply random forest to classify
+    X : DataFrame of shape (n_samples, n_features)
+        Design matrix of regression problem
+
+    y : array-like of shape (n_samples, )
+        Response vector corresponding given samples
+
+    :return:
+    """
     regr = ensemble.RandomForestRegressor(n_estimators=100, random_state=0)
     regr.fit(X, y)
     return regr
@@ -181,7 +217,6 @@ def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = 0.
     train_X = X.sample(frac=train_proportion)
     test_X = X.loc[X.index.difference(train_X.index)]
     return train_X, y.loc[train_X.index], test_X, y.loc[test_X.index]
-
 
 def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: bool = True) -> float:
     y_res = y_true - y_pred
@@ -198,6 +233,7 @@ def clean_data():
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
+    y_pred = create_predicted_selling_amount_column(df)
     y = create_cancellation_colunmn(df)
     X = df.drop(columns=["cancellation_datetime"])
     return X, y
@@ -213,10 +249,10 @@ def apply_model(X, y):
 max_depth = 30
 if __name__ == "__main__":
     X, y = clean_data()
-    a = 2
+    # a = 2
     # apply_model(X, y)
-
-
+    # print(compute_policy("7D1N_1D100P_100P", "2018-07-21 00:00:00", "2018-07-25 00:00:00", "2018-06-24", 100))
+    # print(compute_policy("7D50P_3D100P_100P", "2018-06-25 00:00:00", "2018-06-30 00:00:00", "2018-06-24", 100))
 
 
 
