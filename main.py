@@ -3,6 +3,23 @@ import pandas as pd
 from datetime import datetime
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 
+def drop_useless_columns(df):
+
+
+def drop_null_columns(df, threshold=0.75):
+    columns_to_drop = []
+    for column in df.columns:
+        if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
+            columns_to_drop.append(column)
+    return columns_to_drop
+
+
+
+def preprocess_data(df):
+    drop_useless_columns(df)
+    drop_null_columns(df)
+
+
 
 def create_cancellation_colunmn(df):
     date_cancellation = df["cancellation_datetime"]
