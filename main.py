@@ -25,7 +25,7 @@ def apply_booking_date(df):
 def create_for_free_cancelation(df):
     df = df.drop(df[df["cancellation_policy_code"] == "UNKNOWN"].index)
     return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']) -
-                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code'])) + 1)/7), axis=1)
+                                max(round((max(item['days'] for item in decode_policy(row['cancellation_policy_code'])) + 1)/7), 0), axis=1)
 
 
 def create_trip_duration(df):
@@ -128,7 +128,7 @@ def clean_data():
 
 def apply_model(X, y):
     train_X, train_y, train_cross_X, max_depth = max_depth, train_cross_y = split_train_test(X, y)
-    create_cancellation_colunmn(df)
+    # create_cancellation_colunmn(df)
     regr = classifier_fit(train_X, train_y)
     y_pred = classifier_predict(train_cross_X, regr)
     y_pred = np.where(y_pred < 0.5, 0, 1)
