@@ -2,9 +2,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
-from sklearn import ensemble
-
-
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
@@ -90,7 +87,7 @@ if __name__ == "__main__":
     df = preprocess_data(df)
     y = create_cancellation_colunmn(df)
     X = df.drop(columns=["cancellation_datetime"])
-    classifier_prediction(X, y)
+    a = 1
     # create_cancellation_colunmn(df)
 
 
