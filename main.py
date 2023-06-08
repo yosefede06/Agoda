@@ -10,7 +10,7 @@ DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_chil
                'guest_nationality_country_name', 'language','original_payment_currency',
                 'request_nonesmoke','request_latecheckin','request_highfloor','request_largebed',
                 'request_twinbeds','request_airport','request_earlycheckin', "hotel_brand_code", "hotel_chain_code",
-                 'hotel_area_code','hotel_city_code', "h_customer_id", "cancellation_policy_code"]
+                 'hotel_area_code','hotel_city_code', "h_customer_id"]
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
                    'original_payment_method','original_payment_type', 'charge_option']
 
@@ -25,7 +25,8 @@ def apply_booking_date(df):
 def create_for_free_cancelation(df):
     df = df.drop(df[df["cancellation_policy_code"] == "UNKNOWN"].index)
     return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']) -
-                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code'])) + 1)/7), axis=1)
+                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code']))
+                                       + 1)/7), axis=1)
 
 
 def create_trip_duration(df):
@@ -84,7 +85,7 @@ def transform_to_binary(df):
 def preprocess_data(df):
     df = drop_useless_columns(df)
     df = add_features(df)
-    df = df.drop(columns=["origin_country_code", "booking_datetime", "checkin_date", "checkout_date", "hotel_live_date", "h_booking_id"])
+    # df = df.drop(columns=["origin_country_code", "booking_datetime", "checkin_date", "checkout_date", "hotel_live_date", "h_booking_id"])
     df = classify_columns(df)
     df = transform_to_binary(df)
     return df
@@ -117,19 +118,28 @@ def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: b
     if normalize:
         return false_response / np.size(y_res)
     return false_response
-max_depth = 30
-if __name__ == "__main__":
+
+def clean_data():
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
     y = create_cancellation_colunmn(df)
     X = df.drop(columns=["cancellation_datetime"])
+    return X, y
+
+def apply_model(X, y):
     train_X, train_y, train_cross_X, max_depth = max_depth, train_cross_y = split_train_test(X, y)
-    create_cancellation_colunmn(df)
     regr = classifier_fit(train_X, train_y)
     y_pred = classifier_predict(train_cross_X, regr)
     y_pred = np.where(y_pred < 0.5, 0, 1)
     print(misclassification_error(train_cross_y, y_pred))
+
+max_depth = 30
+if __name__ == "__main__":
+    X, y = clean_data()
+    a = 2
+    # apply_model(X, y)
+
 
 
 
