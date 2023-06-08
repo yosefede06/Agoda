@@ -18,7 +18,8 @@ def drop_null_columns(df, threshold=0.75):
     for column in df.columns:
         if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
             columns_to_drop.append(column)
-    return columns_to_drop
+    df = df.drop(columns=columns_to_drop)
+    return df
 
 
 
