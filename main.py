@@ -19,6 +19,11 @@ def drop_useless_columns(df):
 def apply_booking_date(df):
     return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']), axis=1)
 
+def create_for_free_cancelation(df):
+    df = df.drop(df[df["cancellation_policy_code"] == "UNKNOWN"].index)
+    return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']) -
+                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code'])) + 1)/7), axis=1)
+
 
 def create_trip_duration(df):
     return df.apply(lambda row: days_difference(row['checkin_date'], row['checkout_date']), axis=1)
@@ -32,6 +37,7 @@ def add_features(df):
     df["weeks_to_checkin"] = apply_booking_date(df)
     df["duration_trip"] = create_trip_duration(df)
     df["same_country"] = create_guest_same_country_booking(df)
+    df["time_for_free_cancellation"] = create_for_free_cancelation(df)
     return df
 
 
@@ -49,6 +55,7 @@ def decode_policy(code):
             if col in pol:
                 temp = pol.split(col)
                 new_data[COLUMNS_POLICY[col]] = int(temp[0])
+                # print("_________", temp[0])
                 pol = "".join(temp[1:])
             else:
                 new_data[COLUMNS_POLICY[col]] = -1
@@ -68,28 +75,32 @@ def days_difference(booking_date_str, check_in_date_str):
 
 def transform_to_binary(df):
     df["is_first_booking"] = df["is_first_booking"].astype(int)
+    df["is_user_logged_in"] = df["is_user_logged_in"].astype(int)
+    return df
 
 
 def preprocess_data(df):
     df = drop_useless_columns(df)
     df = add_features(df)
     df = classify_columns(df)
-    transform_to_binary(df)
+    df = transform_to_binary(df)
+    print(df["time_for_free_cancellation"], df["weeks_to_checkin"])
     return df
 
 def classify_columns(df):
     return pd.get_dummies(df, columns=DUMMIES_COLUMNS, dtype=float)
 
-def classifier_prediction(X, y):
-    ensemble.RandomForestClassifier()
+# def classifier_prediction(X, y):
+#     ensemble.RandomForestClassifier()
 
 if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
-    y = create_cancellation_colunmn(df)
-    X = df.drop(columns=["cancellation_datetime"])
-    a = 1
+    # y = create_cancellation_colunmn(df)
+
+    # X = df.drop(columns=["cancellation_datetime"])
+    # a = 1
     # create_cancellation_colunmn(df)
 
 
