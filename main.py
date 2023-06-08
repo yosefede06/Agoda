@@ -23,16 +23,19 @@ def drop_null_columns(df, threshold=0.75):
     columns_to_drop = []
     for column in df.columns:
         if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
+            print(column)
             columns_to_drop.append(column)
     df = df.drop(columns=columns_to_drop)
     return df
 
 
+def create_trip_duration(df):
+    return df.apply(lambda row: days_difference(row['checkout_date'], row['checkin_date']), axis=1)
 
-def preprocess_data(df):
-    df = drop_useless_columns(df)
-    df = drop_null_columns(df)
-    return df
+
+def add_features(df):
+    df["date_to_checkin"] = apply_booking_date(df)
+    df["duration_trip"] = create_cancellation_colunmn(df)
 
 
 def create_cancellation_colunmn(df):
@@ -83,12 +86,18 @@ def clean_hotel_id(df):
 # checkout date E
 # formula = (B - A) / D
 
+
+def preprocess_data(df):
+    df = drop_useless_columns(df)
+    df = drop_null_columns(df)
+    return df
+
+
 if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
 
-    print(df)
 
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
