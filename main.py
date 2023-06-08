@@ -29,8 +29,9 @@ def drop_null_columns(df, threshold=0.75):
 
 
 def preprocess_data(df):
-    drop_useless_columns(df)
-    drop_null_columns(df)
+    df = drop_useless_columns(df)
+    df = drop_null_columns(df)
+    return df
 
 
 def create_cancellation_colunmn(df):
@@ -84,8 +85,7 @@ def clean_hotel_id(df):
 if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
-    df = drop_useless_columns(df)
-    df = drop_null_columns(df)
+    df = preprocess_data(df)
 
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
