@@ -29,13 +29,23 @@ def drop_null_columns(df, threshold=0.75):
     return df
 
 
+def apply_booking_date(df):
+    return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']), axis=1)
+
+
 def create_trip_duration(df):
-    return df.apply(lambda row: days_difference(row['checkout_date'], row['checkin_date']), axis=1)
+    return df.apply(lambda row: days_difference(row['checkin_date'], row['checkout_date']), axis=1)
+
+
+def create_guest_same_country_booking(df):
+    return np.where(df['hotel_country_code'] == df['origin_country_code'], 1, 0)
 
 
 def add_features(df):
     df["date_to_checkin"] = apply_booking_date(df)
-    df["duration_trip"] = create_cancellation_colunmn(df)
+    df["duration_trip"] = create_trip_duration(df)
+    df["same_country"] = create_guest_same_country_booking(df)
+    return df
 
 
 def create_cancellation_colunmn(df):
@@ -69,10 +79,6 @@ def days_difference(booking_date_str, check_in_date_str):
     return difference.days
 
 
-def apply_booking_date(df):
-    return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']), axis=1)
-
-
 
 def clean_hotel_id(df):
     # df["hotel_id"]
@@ -90,6 +96,7 @@ def clean_hotel_id(df):
 def preprocess_data(df):
     df = drop_useless_columns(df)
     df = drop_null_columns(df)
+    df = add_features(df)
     return df
 
 
@@ -97,7 +104,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
-
+    print(df.columns)
 
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
