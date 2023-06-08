@@ -6,7 +6,8 @@ COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
                 'request_nonesmoke','request_latecheckin','request_highfloor','request_largebed',
-                'request_twinbeds','request_airport','request_earlycheckin', "hotel_brand_code", "hotel_chain_code", 'hotel_area_code','hotel_city_code']
+                'request_twinbeds','request_airport','request_earlycheckin', "hotel_brand_code", "hotel_chain_code",
+                 'hotel_area_code','hotel_city_code']
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
                    'original_payment_method','original_payment_type', 'charge_option']
 
@@ -81,6 +82,7 @@ def classify_columns(df):
 
 def classifier_prediction(X, y):
     ensemble.RandomForestClassifier()
+
 if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
