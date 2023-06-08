@@ -6,7 +6,14 @@ COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 def drop_useless_columns(df):
 
 
+
 def drop_null_columns(df, threshold=0.75):
+    null_counts = {}
+    not_null_counts = {}
+    for column in df.columns:
+        null_counts[column] = df[column].isnull().sum()
+        not_null_counts[column] = df[column].notnull().sum()
+
     columns_to_drop = []
     for column in df.columns:
         if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
