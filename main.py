@@ -25,8 +25,8 @@ def drop_null_columns(df, threshold=0.5):
 
     columns_to_drop = []
     for column in df.columns:
-        print(column)
-        print(float(null_counts[column] / (null_counts[column] + not_null_counts[column])) * 100)
+        # print(column)
+        # print(float(null_counts[column] / (null_counts[column] + not_null_counts[column])) * 100)
         if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
             columns_to_drop.append(column)
     df = df.drop(columns=columns_to_drop)
@@ -49,6 +49,15 @@ def add_features(df):
     df["date_to_checkin"] = apply_booking_date(df)
     df["duration_trip"] = create_trip_duration(df)
     df["same_country"] = create_guest_same_country_booking(df)
+    return df
+
+def transform_to_binary(df):
+    mapping1 = {"True": 1, "False": 0}
+    df = df["is_user_logged_in"] = np.vectorize(mapping1.get)(df["is_user_logged_in"])
+    df = df["is_first_booking"] = np.vectorize(mapping1.get)(df["is_first_booking"])
+
+    mapping2 = {"Pay Now": 0, "Pay Later": 1}
+    df = df["charge_option"] = np.vectorize(mapping2.get)(df["charge_option"])
     return df
 
 
@@ -90,19 +99,11 @@ def change_charge_option(df):
     df["charge_option"] = np.vectorize(mapping.get)(df["charge_option"])
 
 
-
-# book date A
-# reservation date B
-# cancellation date C
-# days for free cancellation D
-# checkout date E
-# formula = (B - A) / D
-
-
 def preprocess_data(df):
     df = drop_useless_columns(df)
-    df = drop_null_columns(df)
+    # df = drop_null_columns(df)
     df = add_features(df)
+    df = transform_to_binary(df)
     return df
 
 def classify_columns(df):
@@ -118,8 +119,8 @@ if __name__ == "__main__":
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
     # X = pd.get_dummies(df, columns=['hotel_id'])
-    df = classify_columns(df)
-    filepath = Path('out.csv')
-    df.to_csv(filepath)
+    # df = classify_columns(df)
+    # filepath = Path('out.csv')
+    # df.to_csv(filepath)
 
     # print(df)
