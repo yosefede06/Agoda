@@ -70,6 +70,7 @@ def apply_booking_date(df):
     return df.apply(lambda row: days_difference(row['booking_datetime'], row['checkin_date']), axis=1)
 
 
+
 def clean_hotel_id(df):
     # df["hotel_id"]
     pass
