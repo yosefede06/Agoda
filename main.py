@@ -76,6 +76,7 @@ def preprocess_data(df):
     df = drop_useless_columns(df)
     df = add_features(df)
     df = classify_columns(df)
+    df = transform_to_binary(df)
     return df
 
 def classify_columns(df):
