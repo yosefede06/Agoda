@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
-DROP_COLUMNS = ["h_booking_id", "hotel_id", "cusotmer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
+DROP_COLUMNS = ["h_booking_id", "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
-                'request_nonsmoke','request_latecheckin','request_high_floor',' request_largebed',
+                'request_nonesmoke','request_latecheckin','request_highfloor','request_largebed',
                 'request_twinbeds','request_airport','request_earlycheckin']
+
 
 def drop_useless_columns(df):
     df = df.drop(columns=DROP_COLUMNS)
@@ -86,6 +87,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
+
+    print(df)
 
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
