@@ -8,7 +8,7 @@ DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_chil
                 'request_nonesmoke','request_latecheckin','request_highfloor','request_largebed',
                 'request_twinbeds','request_airport','request_earlycheckin', "hotel_brand_code", "hotel_chain_code", 'hotel_area_code','hotel_city_code']
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
-                   'original_payment_method','original_payment_type']
+                   'original_payment_method','original_payment_type', 'charge_option']
 
 def drop_useless_columns(df):
     df = df.drop(columns=DROP_COLUMNS)
@@ -65,26 +65,18 @@ def days_difference(booking_date_str, check_in_date_str):
     return difference.days
 
 
-def change_charge_option(df):
-    mapping = {"Pay Now": 0, "Pay Later": 1}
-
-
-    df["charge_option"] = np.vectorize(mapping.get)(df["charge_option"])
-
-
-
-# book date A
-# reservation date B
-# cancellation date C
-# days for free cancellation D
-# checkout date E
-# formula = (B - A) / D
+def transform_to_binary(df):
+    mapping = {True: 1, False: 0}
+    df["is_first_booking"] = df["is_first_booking"].map(mapping)
+    df["is_user_logged_in"] = df["is_user_logged_in"].map(mapping)
+    return df
 
 
 def preprocess_data(df):
     df = drop_useless_columns(df)
     df = add_features(df)
     df = classify_columns(df)
+    df = transform_to_binary(df)
     return df
 
 def classify_columns(df):
@@ -95,8 +87,3 @@ if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
-    # create_cancellation_colunmn(df)
-    # print(apply_booking_date(df))
-
-
-    # print(df)
