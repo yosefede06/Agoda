@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+from sklearn import ensemble
+
+
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
@@ -66,30 +69,31 @@ def days_difference(booking_date_str, check_in_date_str):
 
 
 def transform_to_binary(df):
-    mapping = {True: 1, False: 0}
-    df["is_first_booking"] = df["is_first_booking"].map(mapping)
-    df["is_user_logged_in"] = df["is_user_logged_in"].map(mapping)
-    return df
+    df["is_first_booking"] = df["is_first_booking"].astype(int)
 
 
 def preprocess_data(df):
     df = drop_useless_columns(df)
     df = add_features(df)
     df = classify_columns(df)
+    transform_to_binary(df)
     return df
 
 def classify_columns(df):
     return pd.get_dummies(df, columns=DUMMIES_COLUMNS, dtype=float)
 
-
+def classifier_prediction(X, y):
+    ensemble.RandomForestClassifier()
 if __name__ == "__main__":
     np.random.seed(0)
     df = pd.read_csv("agoda_cancellation_train.csv")
     df = preprocess_data(df)
     y = create_cancellation_colunmn(df)
     X = df.drop(columns=["cancellation_datetime"])
-    a = 1
+    classifier_prediction(X, y)
     # create_cancellation_colunmn(df)
+
+
     # print(apply_booking_date(df))
 
 
