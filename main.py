@@ -3,8 +3,10 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from sklearn import ensemble
+from sklearn import metrics
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
-
+max_depth = 30
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
 DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
@@ -13,8 +15,7 @@ DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_chil
                  'hotel_area_code','hotel_city_code', "h_customer_id"]
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
                    'original_payment_method','original_payment_type', 'charge_option']
-
-
+OUT_CANCELLATION_PREDICTION_FILENAME = "agoda_cancellation_prediction.csv"
 def drop_useless_columns(df):
     """
     Removes irrelevant or non-correlated columns (s.t "hotel_id", "customer_nationality")
@@ -44,6 +45,11 @@ def create_for_free_cancelation(df):
     return df.apply(lambda row: max(days_difference(row['booking_datetime'], row['checkin_date']) -
                                 round((max(item['days'] for item in decode_policy(row['cancellation_policy_code'])) + 1)/7), 0), axis=1)
 
+    df["cancellation_policy_code"] = df["cancellation_policy_code"].replace("UNKNOWN", "0")
+    # df = df[df["cancellation_policy_code"] != "UNKNOWN"]
+    return df.apply(lambda row: max(days_difference(row['booking_datetime'], row['checkin_date']) -
+                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code']))
+                                       + 1)/7), 0), axis=1)
 
 def create_trip_duration(df):
     """
@@ -141,6 +147,12 @@ def transform_to_binary(df):
     return df
 
 
+
+def ouput_csv(col_id, y_pred):
+    df = pd.DataFrame({'ID': col_id, 'cancellation': y_pred})
+    filepath = Path(OUT_CANCELLATION_PREDICTION_FILENAME)
+    df.to_csv(filepath, index=False)
+
 def preprocess_data(df):
     """
     preprocess the data:
@@ -153,7 +165,8 @@ def preprocess_data(df):
     """
     df = drop_useless_columns(df)
     df = add_features(df)
-    df = df.drop(columns=["origin_country_code", "booking_datetime", "checkin_date", "checkout_date", "hotel_live_date", "h_booking_id"])
+    df = df.drop(columns=["origin_country_code", "booking_datetime", "checkin_date", "checkout_date",
+                          "hotel_live_date", "cancellation_policy_code"])
     df = classify_columns(df)
     df = transform_to_binary(df)
     return df
@@ -204,14 +217,12 @@ def classifier_fit(X, y):
     :return:
     """
     regr = ensemble.RandomForestRegressor(n_estimators=100, random_state=0)
+    regr = ensemble.RandomForestRegressor(n_estimators=100, max_depth = max_depth, random_state=0)
     regr.fit(X, y)
     return regr
 
 def classifier_predict(X, regr):
     return regr.predict(X)
-
-def classifier_loss():
-    pass
 
 def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = 0.8):
     train_X = X.sample(frac=train_proportion)
@@ -224,6 +235,9 @@ def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: b
     if normalize:
         return false_response / np.size(y_res)
     return false_response
+
+def regression_fit(train_X, train_y):
+    return LinearRegression().fit(X, y)
 
 def clean_data():
     """
@@ -238,25 +252,34 @@ def clean_data():
     X = df.drop(columns=["cancellation_datetime"])
     return X, y
 
-def apply_model(X, y):
-    train_X, train_y, train_cross_X, max_depth = max_depth, train_cross_y = split_train_test(X, y)
-    # create_cancellation_colunmn(df)
+def clean_id(train_X, train_y, train_cross_X, train_cross_y):
+    col_id = train_cross_X["h_booking_id"]
+    train_X.drop(columns=["h_booking_id"])
+    train_y.drop(columns=["h_booking_id"])
+    train_cross_X.drop(columns=["h_booking_id"])
+    train_cross_y.drop(columns=["h_booking_id"])
+    return col_id
+
+def apply_model_classification(X, y):
+    train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
+    col_id = clean_id(train_X, train_y, train_cross_X, train_cross_y)
     regr = classifier_fit(train_X, train_y)
     y_pred = classifier_predict(train_cross_X, regr)
     y_pred = np.where(y_pred < 0.5, 0, 1)
+    ouput_csv(col_id, y_pred)
     print(misclassification_error(train_cross_y, y_pred))
+    print(metrics.f1_score(y_true=train_cross_y, y_pred=y_pred))
 
-max_depth = 30
+def apply_model_regression(X, y):
+    train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
+    col_id = clean_id(train_X, train_y, train_cross_X, train_cross_y)
+    regr = regression_fit(train_X, train_y)
+    y_pred = regr.predict(train_cross_X)
+
+
 if __name__ == "__main__":
     X, y = clean_data()
-    # a = 2
-    # apply_model(X, y)
-    # print(compute_policy("7D1N_1D100P_100P", "2018-07-21 00:00:00", "2018-07-25 00:00:00", "2018-06-24", 100))
-    # print(compute_policy("7D50P_3D100P_100P", "2018-06-25 00:00:00", "2018-06-30 00:00:00", "2018-06-24", 100))
+    apply_model_classification(X, y)
+    apply_model_regression(X, y)
 
-
-
-    # print(apply_booking_date(df))
-
-
-    # print(df)
+    # apply_model_regression(X, y)
