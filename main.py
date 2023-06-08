@@ -1,19 +1,22 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
-DROP_COLUMNS = ["h_booking_id", "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
+DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
                'guest_nationality_country_name', 'language','original_payment_currency',
                 'request_nonesmoke','request_latecheckin','request_highfloor','request_largebed',
-                'request_twinbeds','request_airport','request_earlycheckin']
-
+                'request_twinbeds','request_airport','request_earlycheckin', "hotel_brand_code", "hotel_chain_code"]
+DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
+                   'original_payment_method','original_payment_type',
+                   'hotel_area_code','hotel_city_code']
 
 def drop_useless_columns(df):
     df = df.drop(columns=DROP_COLUMNS)
     return df
 
 
-def drop_null_columns(df, threshold=0.75):
+def drop_null_columns(df, threshold=0.5):
     null_counts = {}
     not_null_counts = {}
     for column in df.columns:
@@ -22,8 +25,9 @@ def drop_null_columns(df, threshold=0.75):
 
     columns_to_drop = []
     for column in df.columns:
+        print(column)
+        print(float(null_counts[column] / (null_counts[column] + not_null_counts[column])) * 100)
         if float(null_counts[column] / (null_counts[column] + not_null_counts[column])) > threshold:
-            print(column)
             columns_to_drop.append(column)
     df = df.drop(columns=columns_to_drop)
     return df
@@ -79,10 +83,12 @@ def days_difference(booking_date_str, check_in_date_str):
     return difference.days
 
 
+def change_charge_option(df):
+    mapping = {"Pay Now": 0, "Pay Later": 1}
 
-def clean_hotel_id(df):
-    # df["hotel_id"]
-    pass
+
+    df["charge_option"] = np.vectorize(mapping.get)(df["charge_option"])
+
 
 
 # book date A
@@ -99,6 +105,9 @@ def preprocess_data(df):
     df = add_features(df)
     return df
 
+def classify_columns(df):
+    return pd.get_dummies(df, columns=DUMMIES_COLUMNS)
+
 
 if __name__ == "__main__":
     np.random.seed(0)
@@ -109,6 +118,8 @@ if __name__ == "__main__":
     # create_cancellation_colunmn(df)
     # print(apply_booking_date(df))
     # X = pd.get_dummies(df, columns=['hotel_id'])
-
+    df = classify_columns(df)
+    filepath = Path('out.csv')
+    df.to_csv(filepath)
 
     # print(df)
