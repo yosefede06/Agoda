@@ -14,21 +14,23 @@ import plotly.io as pio
 import seaborn as sns
 from sklearn.feature_selection import SelectFromModel
 
+
+
 max_depth = 30
 COLUMNS_POLICY = {"D": "days", "N": "nights", "P": "price"}
-DROP_COLUMNS = ["hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
-                'guest_nationality_country_name', 'language', 'original_payment_currency',
-                'request_nonesmoke', 'request_latecheckin',
-                'request_highfloor',
-                'request_largebed',
+DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_children", "no_of_room",
+               'guest_nationality_country_name', 'language','original_payment_currency',
+                'request_nonesmoke','request_latecheckin',
+                 'request_highfloor',
+                 'request_largebed',
                 'request_twinbeds',
-                'request_airport',
-                'request_earlycheckin',
-                "hotel_brand_code",
-                "hotel_chain_code",
-                'hotel_area_code', 'hotel_city_code', "h_customer_id"]
+                 'request_airport',
+                 'request_earlycheckin',
+                 "hotel_brand_code",
+                 "hotel_chain_code",
+                 'hotel_area_code','hotel_city_code', "h_customer_id"]
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
-                   'original_payment_method', 'original_payment_type', 'charge_option']
+                   'original_payment_method','original_payment_type', 'charge_option']
 
 OUT_CANCELLATION_PREDICTION_FILENAME = "agoda_cancellation_prediction.csv"
 
@@ -64,8 +66,8 @@ def create_for_free_cancelation(df):
     df["cancellation_policy_code"] = df["cancellation_policy_code"].replace("UNKNOWN", "0")
     # df = df[df["cancellation_policy_code"] != "UNKNOWN"]
     return df.apply(lambda row: max(days_difference(row['booking_datetime'], row['checkin_date']) -
-                                    round((max(item['days'] for item in decode_policy(row['cancellation_policy_code']))
-                                           + 1) / 7), 0), axis=1)
+                                round((max(item['days'] for item in decode_policy(row['cancellation_policy_code']))
+                                       + 1)/7), 0), axis=1)
 
 
 def create_trip_duration(df):
@@ -111,8 +113,8 @@ def create_predicted_selling_amount_column(df):
     return df.apply(lambda row: compute_policy(row["cancellation_policy_code"],
                                                row['checkin_date'],
                                                row['checkout_date'],
-                                               row["cancellation_datetime"],
-                                               row["original_selling_amount"]), axis=1)
+                                              row["cancellation_datetime"],
+                                                row["original_selling_amount"]), axis=1)
 
 
 def create_cancellation_colunmn(df):
@@ -173,7 +175,7 @@ def transform_to_binary(df):
     return df
 
 
-def ouput_csv(col_id, y_pred, name_file=OUT_CANCELLATION_PREDICTION_FILENAME, name_column='cancellation'):
+def ouput_csv(col_id, y_pred, name_file = OUT_CANCELLATION_PREDICTION_FILENAME, name_column='cancellation'):
     df = pd.DataFrame({'ID': col_id, 'cancellation': y_pred})
     filepath = Path(name_file)
     df.to_csv(filepath, index=False)
@@ -223,17 +225,17 @@ def compute_policy(policy, checkin_date, checkout_date, cancellation_date, origi
     best_policy = {}
     best_diff = np.inf
     for pol in decode_policy(policy):
-        if abs(num_days_cancellation_to_checkin - pol["days"]) < best_diff:
-            best_diff = abs(num_days_cancellation_to_checkin - pol["days"])
+        if abs(num_days_cancellation_to_checkin-pol["days"]) < best_diff:
+            best_diff = abs(num_days_cancellation_to_checkin-pol["days"])
             best_policy = pol
     if best_policy["days"] < num_days_cancellation_to_checkin:
         return 0.0
     elif best_policy["nights"] < 0:
-        return (best_policy["price"] / 100) * original_selling_amount
+        return (best_policy["price"]/100) * original_selling_amount
     else:
         trip_duration = str(date3 - date2)
         trip_duration = int(trip_duration.split(" ")[0])
-        return (best_policy["nights"] / trip_duration) * original_selling_amount
+        return (best_policy["nights"]/trip_duration) * original_selling_amount
 
 
 def classifier_fit(X, y):
@@ -274,7 +276,7 @@ def regression_fit(train_X, train_y):
     return ensemble.RandomForestRegressor().fit(train_X, train_y)
 
 
-def clean_data_classifiers(df=pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
+def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
     """
     cleans the data and preprocess it
     :return:
@@ -284,7 +286,8 @@ def clean_data_classifiers(df=pd.read_csv("agoda_cancellation_train.csv"), train
     df = preprocess_data(df)
     if not train:
         df = df.reindex(columns=cols_train, fill_value=0)
-    df = df.drop(columns=["origin_country_code",
+    if train:
+        df = df.drop(columns=["origin_country_code",
                           "booking_datetime",
                           "checkin_date",
                           "checkout_date",
@@ -337,7 +340,6 @@ def apply_model_classification(train_X, train_y, train_cross_X, train_cross_y):
     print(metrics.f1_score(y_true=train_cross_y, y_pred=y_pred))
     return regr
 
-
 def output_csv_test(train_X, train_y, train_cross_X):
     col_id = train_cross_X["h_booking_id"]
     train_X = train_X.drop(columns=["h_booking_id"])
@@ -365,51 +367,7 @@ def apply_model_regression(X, y, cancel_y):
     return regr
 
 
-def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", model=[]):
-    """
-    Create scatter plot between each feature and the response.
-        - Plot title specifies feature name
-        - Plot title specifies Pearson Correlation between feature and response
-        - Plot saved under given folder with file name including feature name
-    Parameters
-    ----------
-    X : DataFrame of shape (n_samples, n_features)
-        Design matrix of regression problem
-
-    y : array-like of shape (n_samples, )
-        Response vector to evaluate against
-
-    output_path: str (default ".")
-        Path to folder in which plots are saved
-    """
-    X_corr = X
-    for i in DUMMIES_COLUMNS:
-        X_corr = X_corr.filter(regex='^(?!zip_|' + i + ').*')
-    X_corr = X_corr.drop(columns=["h_booking_id"])
-    X = X.drop(columns=["h_booking_id"])
-    feature_importance = pd.DataFrame({
-        'Feature': X.columns,
-        'Importance': model.feature_importances_
-    })
-    feature_importance.sort_values(by='Importance', ascending=False, inplace=True)
-    correlation = X_corr.corr()
-    fig, ax = plt.subplots(figsize=(20, 20))
-    sns.heatmap(correlation, cmap='coolwarm', annot=True, ax=ax)
-    # fig.tittle('Correlation Heatmap')
-    fig.savefig('heatmap_correlation.png', dpi=300, bbox_inches='tight')
-    top_features = feature_importance.head(5)
-    plt.figure(figsize=(8, 6))
-    sns.barplot(x='Importance', y='Feature', data=top_features)
-    plt.title('Feature Importance')
-    plt.xlabel('Importance')
-    plt.ylabel('Feature')
-    plt.yticks(fontsize=8)
-    plt.show()
-    # Select top features based on importance score
-    print(feature_importance.head(5)['Feature'].tolist())
-
-
 def task_1(test_data):
-    X_cancel_train, y_cancel_train = clean_data_regression()
-    X_cancel_test = clean_data_regression()
+    X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
+    X_cancel_test = clean_data_classifiers(df=test_data, train=False, cols_train=X_cancel_train.columns)
     output_csv_test(X_cancel_train, y_cancel_train, X_cancel_test)

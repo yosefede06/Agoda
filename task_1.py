@@ -109,14 +109,6 @@ def add_features(df):
     return df
 
 
-def create_predicted_selling_amount_column(df):
-    return df.apply(lambda row: compute_policy(row["cancellation_policy_code"],
-                                               row['checkin_date'],
-                                               row['checkout_date'],
-                                              row["cancellation_datetime"],
-                                                row["original_selling_amount"]), axis=1)
-
-
 def create_cancellation_colunmn(df):
     """
     create the cancellation column
@@ -207,37 +199,6 @@ def classify_columns(df):
     return pd.get_dummies(df, columns=DUMMIES_COLUMNS, dtype=float)
 
 
-def compute_policy(policy, checkin_date, checkout_date, cancellation_date, original_selling_amount):
-    checkin_date_format = "%Y-%m-%d %H:%M:%S"
-    cancellation_date_format = "%Y-%m-%d"
-    date2 = datetime.strptime(checkin_date, checkin_date_format)
-    date3 = datetime.strptime(checkout_date, checkin_date_format)
-    # print(cancellation_date)
-    if str(cancellation_date) == "nan":
-        return original_selling_amount
-    date1 = datetime.strptime(cancellation_date, cancellation_date_format)
-    difference = str(date2 - date1)
-    lst = difference.split(" ")
-    if len(lst) == 1:
-        num_days_cancellation_to_checkin = 0
-    else:
-        num_days_cancellation_to_checkin = int(difference.split(" ")[0])
-    best_policy = {}
-    best_diff = np.inf
-    for pol in decode_policy(policy):
-        if abs(num_days_cancellation_to_checkin-pol["days"]) < best_diff:
-            best_diff = abs(num_days_cancellation_to_checkin-pol["days"])
-            best_policy = pol
-    if best_policy["days"] < num_days_cancellation_to_checkin:
-        return 0.0
-    elif best_policy["nights"] < 0:
-        return (best_policy["price"]/100) * original_selling_amount
-    else:
-        trip_duration = str(date3 - date2)
-        trip_duration = int(trip_duration.split(" ")[0])
-        return (best_policy["nights"]/trip_duration) * original_selling_amount
-
-
 def classifier_fit(X, y):
     """
     Apply random forest to classify
@@ -272,10 +233,6 @@ def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: b
     return false_response
 
 
-def regression_fit(train_X, train_y):
-    return ensemble.RandomForestRegressor().fit(train_X, train_y)
-
-
 def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
     """
     cleans the data and preprocess it
@@ -298,27 +255,6 @@ def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), tra
         X = df.drop(columns=["cancellation_datetime"])
         return X, y
     return df
-
-
-def clean_data_regression():
-    """
-    cleans the data and preprocess it
-    :return:
-    """
-    np.random.seed(0)
-    df = pd.read_csv("agoda_cancellation_train.csv")
-    df = preprocess_data(df)
-    df = df.drop(columns=["origin_country_code",
-                          "booking_datetime",
-                          "checkin_date",
-                          "checkout_date",
-                          "hotel_live_date",
-                          "cancellation_policy_code"])
-    cancel_y = create_cancellation_colunmn(df)
-    y = df["original_selling_amount"]
-    df = df.drop(columns=["cancellation_datetime"])
-    X = df.drop(columns=["original_selling_amount"])
-    return X, y, cancel_y
 
 
 def clean_id(train_X, train_y, train_cross_X, train_cross_y):
@@ -348,68 +284,6 @@ def output_csv_test(train_X, train_y, train_cross_X):
     regr = classifier_fit(train_X, train_y)
     y_pred = classifier_predict(train_cross_X, regr)
     ouput_csv(col_id, y_pred)
-
-
-def apply_model_regression(X, y, cancel_y):
-    train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
-    cancel_y = cancel_y.loc[train_X.index]
-    train_X, train_y, train_cross_X, train_cross_y, col_id = clean_id(train_X, train_y, train_cross_X, train_cross_y)
-    regr = classifier_fit(train_X, cancel_y)
-    y_pred_class = classifier_predict(train_cross_X, regr)
-    regr = regression_fit(train_X, train_y)
-    y_pred_regr = regr.predict(train_cross_X)
-    y_pred_final = np.where(y_pred_class == 0, -1, y_pred_regr)
-    mse = mean_squared_error(train_cross_y, y_pred_final)
-    rmse = np.sqrt(mse)
-    ouput_csv(col_id, y_pred_final, "agoda_cost_of_cancellation.csv", "predicted_selling_amount")
-    print(rmse)
-    print(y_pred_final)
-    return regr
-
-
-def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", model = []):
-    """
-    Create scatter plot between each feature and the response.
-        - Plot title specifies feature name
-        - Plot title specifies Pearson Correlation between feature and response
-        - Plot saved under given folder with file name including feature name
-    Parameters
-    ----------
-    X : DataFrame of shape (n_samples, n_features)
-        Design matrix of regression problem
-
-    y : array-like of shape (n_samples, )
-        Response vector to evaluate against
-
-    output_path: str (default ".")
-        Path to folder in which plots are saved
-    """
-    X_corr = X
-    for i in DUMMIES_COLUMNS:
-        X_corr = X_corr.filter(regex='^(?!zip_|'+ i + ').*')
-    X_corr = X_corr.drop(columns=["h_booking_id"])
-    X = X.drop(columns=["h_booking_id"])
-    feature_importance = pd.DataFrame({
-        'Feature': X.columns,
-        'Importance': model.feature_importances_
-    })
-    feature_importance.sort_values(by='Importance', ascending=False, inplace=True)
-    correlation = X_corr.corr()
-    fig, ax = plt.subplots(figsize=(20, 20))
-    sns.heatmap(correlation, cmap='coolwarm', annot=True, ax=ax)
-    # fig.tittle('Correlation Heatmap')
-    fig.savefig('heatmap_correlation.png', dpi=300, bbox_inches='tight')
-    top_features = feature_importance.head(5)
-    plt.figure(figsize=(8, 6))
-    sns.barplot(x='Importance', y='Feature', data=top_features)
-    plt.title('Feature Importance')
-    plt.xlabel('Importance')
-    plt.ylabel('Feature')
-    plt.yticks(fontsize=8)
-    plt.show()
-    # Select top features based on importance score
-    print(feature_importance.head(5)['Feature'].tolist())
-
 
 def task_1(test_data):
     X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
