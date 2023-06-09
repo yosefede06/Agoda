@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.io as pio
 import seaborn as sns
 from sklearn.feature_selection import SelectFromModel
+import joblib
 
 
 
@@ -32,7 +33,7 @@ DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_chil
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
                    'original_payment_method','original_payment_type', 'charge_option']
 
-OUT_CANCELLATION_PREDICTION_FILENAME = "agoda_cancellation_prediction.csv"
+OUT_CANCELLATION_PREDICTION_FILENAME =  "1/predictions/agoda_cost_of_cancellation.csv"
 
 
 def drop_useless_columns(df):
@@ -212,11 +213,14 @@ def classifier_fit(X, y):
     """
     regr = ensemble.RandomForestClassifier(n_estimators=100, max_depth=max_depth, random_state=0)
     regr.fit(X, y)
-    return regr
+    joblib.dump(regr, 'weights1.txt')
 
 
-def classifier_predict(X, regr):
-    return regr.predict(X)
+def classifier_predict(X, weights):
+    # regr = ensemble.RandomForestClassifier(n_estimators=100, max_depth=max_depth, random_state=0)
+    loaded_model = joblib.load('weights1.txt')
+    # regr.coef_ = weights
+    return loaded_model.predict(X)
 
 
 def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = 0.8):
@@ -233,7 +237,7 @@ def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: b
     return false_response
 
 
-def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
+def clean_data_classifiers(df, train=True, cols_train=None):
     """
     cleans the data and preprocess it
     :return:
@@ -276,16 +280,18 @@ def apply_model_classification(train_X, train_y, train_cross_X, train_cross_y):
     print(metrics.f1_score(y_true=train_cross_y, y_pred=y_pred))
     return regr
 
+
+
 def output_csv_test(train_X, train_y, train_cross_X):
     col_id = train_cross_X["h_booking_id"]
     train_X = train_X.drop(columns=["h_booking_id"])
     train_y = train_y.drop(columns=["h_booking_id"])
     train_cross_X = train_cross_X.drop(columns=["h_booking_id"])
-    regr = classifier_fit(train_X, train_y)
-    y_pred = classifier_predict(train_cross_X, regr)
+    classifier_fit(train_X, train_y)
+    y_pred = classifier_predict(train_cross_X, None)
     ouput_csv(col_id, y_pred)
 
-def task_1(test_data):
-    X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
+def task_1(test_data, train_data_pd):
+    X_cancel_train, y_cancel_train = clean_data_classifiers(df=train_data_pd, train=True)
     X_cancel_test = clean_data_classifiers(df=test_data, train=False, cols_train=X_cancel_train.columns)
     output_csv_test(X_cancel_train, y_cancel_train, X_cancel_test)

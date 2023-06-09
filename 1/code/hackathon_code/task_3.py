@@ -32,7 +32,7 @@ DROP_COLUMNS = [ "hotel_id", "customer_nationality", 'no_of_adults', "no_of_chil
 DUMMIES_COLUMNS = ['hotel_country_code', 'accommadation_type_name',
                    'original_payment_method','original_payment_type', 'charge_option']
 
-OUT_CANCELLATION_PREDICTION_FILENAME = "agoda_cancellation_prediction.csv"
+OUT_CANCELLATION_PREDICTION_FILENAME = "../../../agoda_cancellation_prediction.csv"
 
 
 def drop_useless_columns(df):
@@ -276,7 +276,7 @@ def regression_fit(train_X, train_y):
     return ensemble.RandomForestRegressor().fit(train_X, train_y)
 
 
-def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
+def clean_data_classifiers(df = pd.read_csv("1/code/agoda_cancellation_train.csv"), train=True, cols_train=None):
     """
     cleans the data and preprocess it
     :return:
@@ -300,30 +300,25 @@ def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), tra
     return df
 
 
-def clean_data_regression(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
+def clean_data_regression():
     """
     cleans the data and preprocess it
     :return:
     """
     np.random.seed(0)
-
+    df = pd.read_csv("../agoda_cancellation_train.csv")
     df = preprocess_data(df)
-    if not train:
-        df = df.reindex(columns=cols_train, fill_value=0)
-    if train:
-        df = df.drop(columns=["origin_country_code",
+    df = df.drop(columns=["origin_country_code",
                           "booking_datetime",
                           "checkin_date",
                           "checkout_date",
                           "hotel_live_date",
                           "cancellation_policy_code"])
-    if train:
-        cancel_y = create_cancellation_colunmn(df)
-        y = df["original_selling_amount"]
-        df = df.drop(columns=["cancellation_datetime"])
-        X = df.drop(columns=["original_selling_amount"])
-        return X, y, cancel_y
-    return df
+    cancel_y = create_cancellation_colunmn(df)
+    y = df["original_selling_amount"]
+    df = df.drop(columns=["cancellation_datetime"])
+    X = df.drop(columns=["original_selling_amount"])
+    return X, y, cancel_y
 
 
 def clean_id(train_X, train_y, train_cross_X, train_cross_y):
@@ -355,26 +350,67 @@ def output_csv_test(train_X, train_y, train_cross_X):
     ouput_csv(col_id, y_pred)
 
 
-def apply_model_regression(train_X, train_y, train_cross_X, cancel_y):
-    # train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
-    col_id = train_cross_X["h_booking_id"]
-    train_X = train_X.drop(columns=["h_booking_id"])
-    train_cross_X = train_cross_X.drop(columns=["h_booking_id"])
-    # cancel_y = cancel_y.loc[train_X.index]
+def apply_model_regression(X, y, cancel_y):
+    train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
+    cancel_y = cancel_y.loc[train_X.index]
+    train_X, train_y, train_cross_X, train_cross_y, col_id = clean_id(train_X, train_y, train_cross_X, train_cross_y)
     regr = classifier_fit(train_X, cancel_y)
     y_pred_class = classifier_predict(train_cross_X, regr)
     regr = regression_fit(train_X, train_y)
     y_pred_regr = regr.predict(train_cross_X)
     y_pred_final = np.where(y_pred_class == 0, -1, y_pred_regr)
-    # mse = mean_squared_error(train_cross_y, y_pred_final)
-    # rmse = np.sqrt(mse)
-    ouput_csv(col_id, y_pred_final, "agoda_cost_of_cancellation.csv", "predicted_selling_amount")
-    # print(rmse)
-    # print(y_pred_final)
+    mse = mean_squared_error(train_cross_y, y_pred_final)
+    rmse = np.sqrt(mse)
+    ouput_csv(col_id, y_pred_final, "1/predictions/agoda_cost_of_cancellation.csv", "predicted_selling_amount")
+    print(rmse)
+    print(y_pred_final)
     return regr
 
 
-def task_2(test_data):
-    X_cancel_train, y_cancel_train, cancel_y = clean_data_regression(train=True)
-    X_cancel_test = clean_data_regression(df=test_data, train=False, cols_train=X_cancel_train.columns)
-    apply_model_regression(X_cancel_train, y_cancel_train, X_cancel_test, cancel_y)
+def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", model = []):
+    """
+    Create scatter plot between each feature and the response.
+        - Plot title specifies feature name
+        - Plot title specifies Pearson Correlation between feature and response
+        - Plot saved under given folder with file name including feature name
+    Parameters
+    ----------
+    X : DataFrame of shape (n_samples, n_features)
+        Design matrix of regression problem
+
+    y : array-like of shape (n_samples, )
+        Response vector to evaluate against
+
+    output_path: str (default ".")
+        Path to folder in which plots are saved
+    """
+    X_corr = X
+    for i in DUMMIES_COLUMNS:
+        X_corr = X_corr.filter(regex='^(?!zip_|'+ i + ').*')
+    feature_importance = pd.DataFrame({
+        'Feature': X.columns,
+        'Importance': model.feature_importances_
+    })
+    feature_importance.sort_values(by='Importance', ascending=False, inplace=True)
+    correlation = X_corr.corr()
+    fig, ax = plt.subplots(figsize=(20, 20))
+    sns.heatmap(correlation, cmap='coolwarm', annot=True, ax=ax)
+    # fig.tittle('Correlation Heatmap')
+    fig.savefig('heatmap_correlation.png', dpi=300, bbox_inches='tight')
+    top_features = feature_importance.head(5)
+    plt.figure(figsize=(8, 6))
+    sns.barplot(x='Importance', y='Feature', data=top_features)
+    plt.title('Feature Importance')
+    plt.xlabel('Importance')
+    plt.ylabel('Feature')
+    plt.yticks(fontsize=8)
+    plt.show()
+    # Select top features based on importance score
+    print(feature_importance.head(5)['Feature'].tolist())
+
+
+def task_3():
+    X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
+    X_cancel_train = X_cancel_train.drop(columns=["h_booking_id"])
+    regr = classifier_fit(X_cancel_train, y_cancel_train)
+    feature_evaluation(X=X_cancel_train, y=y_cancel_train, model=regr)
