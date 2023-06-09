@@ -286,7 +286,8 @@ def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), tra
     df = preprocess_data(df)
     if not train:
         df = df.reindex(columns=cols_train, fill_value=0)
-    df = df.drop(columns=["origin_country_code",
+    if train:
+        df = df.drop(columns=["origin_country_code",
                           "booking_datetime",
                           "checkin_date",
                           "checkout_date",
@@ -412,7 +413,5 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", mo
 
 def task_1(test_data):
     X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
-    print(X_cancel_train.shape)
     X_cancel_test = clean_data_classifiers(df=test_data, train=False, cols_train=X_cancel_train.columns)
-
     output_csv_test(X_cancel_train, y_cancel_train, X_cancel_test)
