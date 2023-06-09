@@ -387,8 +387,6 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", mo
     X_corr = X
     for i in DUMMIES_COLUMNS:
         X_corr = X_corr.filter(regex='^(?!zip_|'+ i + ').*')
-    X_corr = X_corr.drop(columns=["h_booking_id"])
-    X = X.drop(columns=["h_booking_id"])
     feature_importance = pd.DataFrame({
         'Feature': X.columns,
         'Importance': model.feature_importances_
@@ -411,7 +409,8 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".", mo
     print(feature_importance.head(5)['Feature'].tolist())
 
 
-def task_1(test_data):
+def task_3():
     X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
-    X_cancel_test = clean_data_classifiers(df=test_data, train=False, cols_train=X_cancel_train.columns)
-    output_csv_test(X_cancel_train, y_cancel_train, X_cancel_test)
+    X_cancel_train = X_cancel_train.drop(columns=["h_booking_id"])
+    regr = classifier_fit(X_cancel_train, y_cancel_train)
+    feature_evaluation(X=X_cancel_train, y=y_cancel_train, model=regr)

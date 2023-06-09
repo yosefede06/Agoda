@@ -300,25 +300,30 @@ def clean_data_classifiers(df = pd.read_csv("agoda_cancellation_train.csv"), tra
     return df
 
 
-def clean_data_regression():
+def clean_data_regression(df = pd.read_csv("agoda_cancellation_train.csv"), train=True, cols_train=None):
     """
     cleans the data and preprocess it
     :return:
     """
     np.random.seed(0)
-    df = pd.read_csv("agoda_cancellation_train.csv")
+
     df = preprocess_data(df)
-    df = df.drop(columns=["origin_country_code",
+    if not train:
+        df = df.reindex(columns=cols_train, fill_value=0)
+    if train:
+        df = df.drop(columns=["origin_country_code",
                           "booking_datetime",
                           "checkin_date",
                           "checkout_date",
                           "hotel_live_date",
                           "cancellation_policy_code"])
-    cancel_y = create_cancellation_colunmn(df)
-    y = df["original_selling_amount"]
-    df = df.drop(columns=["cancellation_datetime"])
-    X = df.drop(columns=["original_selling_amount"])
-    return X, y, cancel_y
+    if train:
+        cancel_y = create_cancellation_colunmn(df)
+        y = df["original_selling_amount"]
+        df = df.drop(columns=["cancellation_datetime"])
+        X = df.drop(columns=["original_selling_amount"])
+        return X, y, cancel_y
+    return df
 
 
 def clean_id(train_X, train_y, train_cross_X, train_cross_y):
@@ -350,24 +355,26 @@ def output_csv_test(train_X, train_y, train_cross_X):
     ouput_csv(col_id, y_pred)
 
 
-def apply_model_regression(X, y, cancel_y):
-    train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
-    cancel_y = cancel_y.loc[train_X.index]
-    train_X, train_y, train_cross_X, train_cross_y, col_id = clean_id(train_X, train_y, train_cross_X, train_cross_y)
+def apply_model_regression(train_X, train_y, train_cross_X, cancel_y):
+    # train_X, train_y, train_cross_X, train_cross_y = split_train_test(X, y)
+    col_id = train_cross_X["h_booking_id"]
+    train_X = train_X.drop(columns=["h_booking_id"])
+    train_cross_X = train_cross_X.drop(columns=["h_booking_id"])
+    # cancel_y = cancel_y.loc[train_X.index]
     regr = classifier_fit(train_X, cancel_y)
     y_pred_class = classifier_predict(train_cross_X, regr)
     regr = regression_fit(train_X, train_y)
     y_pred_regr = regr.predict(train_cross_X)
     y_pred_final = np.where(y_pred_class == 0, -1, y_pred_regr)
-    mse = mean_squared_error(train_cross_y, y_pred_final)
-    rmse = np.sqrt(mse)
+    # mse = mean_squared_error(train_cross_y, y_pred_final)
+    # rmse = np.sqrt(mse)
     ouput_csv(col_id, y_pred_final, "agoda_cost_of_cancellation.csv", "predicted_selling_amount")
-    print(rmse)
-    print(y_pred_final)
+    # print(rmse)
+    # print(y_pred_final)
     return regr
 
 
-def task_1(test_data):
-    X_cancel_train, y_cancel_train = clean_data_classifiers(train=True)
-    X_cancel_test = clean_data_classifiers(df=test_data, train=False, cols_train=X_cancel_train.columns)
-    output_csv_test(X_cancel_train, y_cancel_train, X_cancel_test)
+def task_2(test_data):
+    X_cancel_train, y_cancel_train, cancel_y = clean_data_regression(train=True)
+    X_cancel_test = clean_data_regression(df=test_data, train=False, cols_train=X_cancel_train.columns)
+    apply_model_regression(X_cancel_train, y_cancel_train, X_cancel_test, cancel_y)
